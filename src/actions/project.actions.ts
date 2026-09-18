@@ -4,7 +4,7 @@ import { randomUUID } from "crypto";
 import { and, desc, eq, inArray, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db/client";
-import { projectMembers, projects, taskAssignees } from "@/db/schema";
+import { projectMembers, projects, tasks, taskAssignees } from "@/db/schema";
 import { canAccessProject, requireUserId } from "@/lib/auth";
 import { getClerkUsersByIds } from "@/lib/clerk-users";
 
@@ -22,16 +22,23 @@ export async function getProjects() {
     where: memberProjectIds.length > 0
       ? or(eq(projects.clerkUserId, userId), inArray(projects.id, memberProjectIds))
       : eq(projects.clerkUserId, userId),
-    with: { tasks: true },
     orderBy: [desc(projects.createdAt)],
   });
 
-  const taskIds = projectRows.flatMap((project) => project.tasks.map((task) => task.id));
+  const projectIds = projectRows.map((project) => project.id);
+
+  if (projectIds.length === 0) {
+    return projectRows.map((project) => ({ ...project, tasks: [] }));
+  }
+
+  const taskRows = await db.select().from(tasks).where(inArray(tasks.projectId, projectIds));
+
+  const taskIds = taskRows.map((task) => task.id);
 
   if (taskIds.length === 0) {
     return projectRows.map((project) => ({
       ...project,
-      tasks: project.tasks.map((task) => ({ ...task, assignees: [] })),
+      tasks: taskRows.filter((task) => task.projectId === project.id).map((task) => ({ ...task, assignees: [] })),
     }));
   }
 
@@ -44,15 +51,17 @@ export async function getProjects() {
 
   return projectRows.map((project) => ({
     ...project,
-    tasks: project.tasks.map((task) => ({
-      ...task,
-      assignees: assigneeRows
-        .filter((assignee) => assignee.taskId === task.id)
-        .map(
-          (assignee) =>
-            users.get(assignee.clerkUserId) ?? { id: assignee.clerkUserId, name: assignee.clerkUserId, imageUrl: "" },
-        ),
-    })),
+    tasks: taskRows
+      .filter((task) => task.projectId === project.id)
+      .map((task) => ({
+        ...task,
+        assignees: assigneeRows
+          .filter((assignee) => assignee.taskId === task.id)
+          .map(
+            (assignee) =>
+              users.get(assignee.clerkUserId) ?? { id: assignee.clerkUserId, name: assignee.clerkUserId, imageUrl: "" },
+          ),
+      })),
   }));
 }
 
