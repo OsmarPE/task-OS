@@ -5,5 +5,5 @@ interface Props {
 }
 
 export default function ProjectList({ children }: Props) {
-  return <div className="mt-8 md:mt-4 grid gap-6 grid-cols-[repeat(auto-fill,minmax(370px,1fr))]">{children}</div>;
+  return <div className="mt-8 md:mt-4 grid gap-6 grid-cols-3 md:grid-cols-2">{children}</div>;
 }

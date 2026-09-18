@@ -24,6 +24,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -63,6 +70,18 @@ export function TableListTasks({ data, columns }: Props) {
     },
   });
 
+  const assigneeOptions = React.useMemo(() => {
+    const seen = new Map<string, string>();
+
+    data.forEach((task) => {
+      task.assignees.forEach((assignee) => {
+        seen.set(assignee.id, assignee.name);
+      });
+    });
+
+    return Array.from(seen, ([id, name]) => ({ id, name }));
+  }, [data]);
+
   return (
     <div className="w-full">
       <div className="flex flex-col gap-4 md:flex-row md:items-center py-6">
@@ -72,6 +91,24 @@ export function TableListTasks({ data, columns }: Props) {
           onChange={(event) => table.getColumn("taskName")?.setFilterValue(event.target.value)}
           className="max-w-sm"
         />
+        <Select
+          value={(table.getColumn("assignees")?.getFilterValue() as string) ?? "all"}
+          onValueChange={(value) =>
+            table.getColumn("assignees")?.setFilterValue(value === "all" ? undefined : value)
+          }
+        >
+          <SelectTrigger className="max-w-[200px]">
+            <SelectValue placeholder="Filtrar por persona" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas las personas</SelectItem>
+            {assigneeOptions.map((assignee) => (
+              <SelectItem key={assignee.id} value={assignee.id}>
+                {assignee.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" className="ml-auto">
@@ -97,7 +134,7 @@ export function TableListTasks({ data, columns }: Props) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      <div className="w-full overflow-x-auto max-w-[90vw]">
+      <div className="w-full overflow-x-auto max-w-3xl">
         <div className="rounded-md border min-w-[700px]">
           <Table>
             <TableHeader>

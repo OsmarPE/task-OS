@@ -131,7 +131,12 @@ export const columns: ColumnDef<TaskRow>[] = [
   },
   {
     id: "assignees",
+    accessorFn: (row) => row.assignees.map((assignee) => assignee.id),
     header: "Asignados",
+    filterFn: (row, columnId, filterValue: string) => {
+      if (!filterValue) return true;
+      return (row.getValue(columnId) as string[]).includes(filterValue);
+    },
     cell: ({ row }) => {
       const assignees = row.original.assignees;
 

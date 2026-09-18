@@ -4,7 +4,7 @@ import { useShowMenu } from "@/hooks/useShowMenu";
 import { cn } from "@/lib/utils";
 import { typeLink } from "@/types";
 import { DashboardIcon } from "@radix-ui/react-icons";
-import { BoxIcon, SettingsIcon, Waypoints, X } from "lucide-react";
+import { BoxIcon, Route, SettingsIcon, Waypoints, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import LinkHeader from "../LinkHeader";
 import ButtonLogOut from "../buttons/ButtonLogOut";
@@ -25,6 +25,11 @@ const links: typeLink[] = [
     href: "main/graph",
     Icon: Waypoints,
     name: "Grafo",
+  },
+  {
+    href: "main/timeline",
+    Icon: Route,
+    name: "Línea de tiempo",
   },
   {
     href: "main/settings",

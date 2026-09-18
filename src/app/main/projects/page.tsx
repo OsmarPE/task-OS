@@ -19,7 +19,7 @@ export default function ProjectsPage() {
   const showModalAddTask = Boolean(search.get("addTask"));
 
   return (
-    <div className="max-w-screen-xl">
+    <div className="max-w-screen-2xl">
       <div className="flex flex-col md:flex-row md:items-center gap-4 md:justify-between">
         <div>
           <h2 className="font-bold text-2xl">Mis Proyectos</h2>
