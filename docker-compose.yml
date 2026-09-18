@@ -1,0 +1,16 @@
+services:
+  mysql:
+    image: mysql:8
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: front_tasks
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: front_tasks
+      MYSQL_PASSWORD: front_tasks
+    ports:
+      - "3307:3306"
+    volumes:
+      - front_tasks_mysql_data:/var/lib/mysql
+
+volumes:
+  front_tasks_mysql_data:
