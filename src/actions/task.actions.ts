@@ -4,10 +4,33 @@ import { randomUUID } from "crypto";
 import { eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db/client";
-import { projects, taskAssignees, taskDependencies, tasks } from "@/db/schema";
+import { priorities, projects, taskAssignees, taskDependencies, tasks } from "@/db/schema";
 import { canAccessProject, getAccessibleProjectIds, requireUserId } from "@/lib/auth";
 import { getClerkUsersByIds } from "@/lib/clerk-users";
 import { TaskAdd, TaskEdit } from "@/types";
+
+async function populateProjectAndPriority<T extends { projectId: string; priorityId: number }>(
+  rows: T[],
+) {
+  if (rows.length === 0) return [];
+
+  const projectIds = [...new Set(rows.map((row) => row.projectId))];
+  const priorityIds = [...new Set(rows.map((row) => row.priorityId))];
+
+  const [projectRows, priorityRows] = await Promise.all([
+    db.select().from(projects).where(inArray(projects.id, projectIds)),
+    db.select().from(priorities).where(inArray(priorities.id, priorityIds)),
+  ]);
+
+  const projectsById = new Map(projectRows.map((project) => [project.id, project]));
+  const prioritiesById = new Map(priorityRows.map((priority) => [priority.id, priority]));
+
+  return rows.map((row) => ({
+    ...row,
+    project: projectsById.get(row.projectId)!,
+    priority: prioritiesById.get(row.priorityId)!,
+  }));
+}
 
 async function attachAssignees<T extends { id: string }>(rows: T[]) {
   if (rows.length === 0) return rows.map((row) => ({ ...row, assignees: [] }));
@@ -72,12 +95,9 @@ export async function getTasksWithPopulateProject() {
 
   if (projectIds.length === 0) return [];
 
-  const rows = await db.query.tasks.findMany({
-    where: inArray(tasks.projectId, projectIds),
-    with: { project: true, priority: true },
-  });
+  const rows = await db.select().from(tasks).where(inArray(tasks.projectId, projectIds));
 
-  return attachDependencies(await attachAssignees(rows));
+  return attachDependencies(await attachAssignees(await populateProjectAndPriority(rows)));
 }
 
 export async function getTasksByProject(projectId: string) {
@@ -87,27 +107,22 @@ export async function getTasksByProject(projectId: string) {
     throw new Error("Proyecto no encontrado");
   }
 
-  const rows = await db.query.tasks.findMany({
-    where: eq(tasks.projectId, projectId),
-    with: { project: true, priority: true },
-  });
+  const rows = await db.select().from(tasks).where(eq(tasks.projectId, projectId));
 
-  return attachDependencies(await attachAssignees(rows));
+  return attachDependencies(await attachAssignees(await populateProjectAndPriority(rows)));
 }
 
 export async function getTaskById(id: string) {
   const userId = await requireUserId();
 
-  const task = await db.query.tasks.findFirst({
-    where: eq(tasks.id, id),
-    with: { project: true, priority: true },
-  });
+  const [task] = await db.select().from(tasks).where(eq(tasks.id, id));
 
   if (!task || !(await canAccessProject(userId, task.projectId))) {
     throw new Error("Tarea no encontrada");
   }
 
-  const [withAssignees] = await attachAssignees([task]);
+  const [withProjectAndPriority] = await populateProjectAndPriority([task]);
+  const [withAssignees] = await attachAssignees([withProjectAndPriority]);
 
   return withAssignees;
 }
